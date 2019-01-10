@@ -1,0 +1,1 @@
+{"mega": {"cmd_login": "mega-login", "cmd_logout": "mega-logout", "cmd_du": "mega-du", "cmd_get": "mega-get", "cmd_put": "mega-put", "cmd_rm": "mega-rm", "cmd_session": "mega-session", "cmd_sync": "mega-sync", "cmd_sync_daemon": "megasimplesync", "cmd_transfers": "mega-transfers", "cmd_https": "mega-https"}, "comptes": []}
