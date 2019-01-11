@@ -39,6 +39,7 @@
 #include <iostream>
 
 #include <fstream>
+#include <sys/stat.h>
 
 using namespace mega;
 using namespace std;
@@ -492,6 +493,9 @@ static int MEGAread(const char *p, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
 	string path = megaBasePath + p;
+	string tmpfilename = p;
+	tmpfilename = tmpfilename.substr(tmpfilename.find_last_of("/\\") + 1);
+	tmpfilename = megaCachePath + tmpfilename;
 	MegaApi::log(MegaApi::LOG_LEVEL_DEBUG, "Reading file:");
 	MegaApi::log(MegaApi::LOG_LEVEL_DEBUG, path.c_str());
         	
@@ -513,29 +517,49 @@ static int MEGAread(const char *p, char *buf, size_t size, off_t offset,
 		size = node->getSize() - offset;
 	}
 	
-	SynchronousTransferListenerFuse listener;
-	megaApi->startStreaming(node, offset, size, &listener);
-	listener.wait();
-	delete node;
-	if (listener.getError()->getErrorCode() != MegaError::API_OK)
-	{
-		MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Transfer error");
-		return -EIO;
+	ifstream infile;
+	infile.open(tmpfilename,ios::binary);
+	bool reading = true;
+	cout << "gsqdjhgdhjksqdhkjqdshkdhkjqsdhkjdshqk" << endl;
+	if (infile) {
+		infile.close();
+		struct stat buffer;
+		int result = stat(tmpfilename.c_str(), &buffer);
+		reading = (result == 0 && node->getModificationTime() > buffer.st_mtime);
+		cout << "gsqdjhgdhjksqdhkjqdshkdhkjqsdhkjdshqk " << result << endl;
+		if (!reading) {
+			cout << "####################################### OK" << endl;
+			infile.open(tmpfilename,ios::binary);
+			infile.seekg (offset);
+			if (!infile.read(buf,size)) {
+				cout << "####################################### KO" << endl;
+				MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Internal error");
+				return -EIO;
+			}
+			infile.close();
+		}
+	} else if (!infile && reading) {
+		SynchronousTransferListenerFuse listener;
+		megaApi->startStreaming(node, offset, size, &listener);
+		listener.wait();
+		delete node;
+		if (listener.getError()->getErrorCode() != MegaError::API_OK)
+		{
+			MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Transfer error");
+			return -EIO;
+		}
+		if (listener.getDataSize() != size)
+		{
+			MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Internal error");
+			return -EIO;
+		}
+
+		ofstream outfile;
+		outfile.open(tmpfilename,ios::binary);
+		outfile << listener.getData();
+		outfile.close();
+		memcpy(buf, listener.getData(), size);
 	}
-	
-	if (listener.getDataSize() != size)
-	{
-		MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Internal error");
-		return -EIO;
-	}
-	ofstream outfile;
-	string tmpfilename = p;
-	tmpfilename = tmpfilename.substr(tmpfilename.find_last_of("/\\") + 1);
-	tmpfilename = megaCachePath + tmpfilename;
-	outfile.open(tmpfilename,ios::binary);
-	outfile << listener.getData();
-	outfile.close();
-	memcpy(buf, listener.getData(), size);
 	MegaApi::log(MegaApi::LOG_LEVEL_DEBUG, "File read OK");
     return size;
 }
@@ -543,8 +567,9 @@ static int MEGAread(const char *p, char *buf, size_t size, off_t offset,
 static int MEGArelease(const char *p, struct fuse_file_info *fi)
 {
 	// release too early
-	// string tmpfilename = "/tmp/";
-	// tmpfilename += p;
+	// string tmpfilename = p;
+	// tmpfilename = tmpfilename.substr(tmpfilename.find_last_of("/\\") + 1);
+	// tmpfilename = megaCachePath + tmpfilename;
 	// remove(tmpfilename.c_str());
 	return 0;
 }
@@ -682,17 +707,21 @@ int main(int argc, char *argv[])
 	string megauser;
 	string megapassword;
 	string mountpoint;
-	if (argc != 1 && argc != 4 && argc != 5)
+	megaCachePath = "/tmp/MEGAcloud_";
+	if (argc > 4)
 	{
-		cout << "Usage: " << argv[0] << " [megauser megapassword localmountpoint [megamountpoint]]" << endl; 
+		cout << "Usage: " << argv[0] << " local_folder [remote_folder [cache_folder]]" << endl; 
 		return 0;
 	}
-	
+	if (argc != 1 && (!getenv("MEGA_EMAIL") || !getenv("MEGA_PWD")))
+    {
+		cout << "Please set both MEGA_EMAIL and MEGA_PWD env variables!" << endl;	
+        return 1;
+    }
 	if (argc == 1)
 	{
 		cout << "MEGA email: ";
 		getline(cin, megauser);
-		
 		struct termios oldt;
 		tcgetattr(STDIN_FILENO, &oldt);
 		struct termios newt = oldt;
@@ -707,17 +736,22 @@ int main(int argc, char *argv[])
 		getline(cin, mountpoint);	
 		
 		cout << "MEGA mountpoint (default /): ";
-		getline(cin, megaBasePath);		
-	}
-	else if (argc == 4 || argc == 5)
-	{
-		megauser = argv[1];
-		megapassword = argv[2];
-		mountpoint = argv[3];
+		getline(cin, megaBasePath);
 		
-		if(argc == 5)
+		cout << "MEGA cache folder (default /tmp/MEGAcloud_...): ";
+		getline(cin, megaCachePath);
+	} else
+	{
+		megauser = getenv("MEGA_EMAIL");
+		megapassword = getenv("MEGA_PWD");
+		mountpoint = argv[1];
+		
+		if(argc > 2)
 		{
-			megaBasePath = argv[4];
+			megaBasePath = argv[2];
+			if (argc == 4) {
+				megaCachePath = argv[3];
+			}
 		}
 	}	
 
@@ -725,7 +759,22 @@ int main(int argc, char *argv[])
 	{
 		megaBasePath.resize(megaBasePath.size()-1);
 	}
-			
+	
+	if (megaCachePath == "/tmp/MEGAcloud_") {
+		srand(time(NULL));
+		for (int i = 0; i < 12; i++) {
+			char c;
+			while (!isalnum(c = static_cast<char>(rand())));
+			megaCachePath.push_back(c);
+		}
+		megaCachePath.push_back('/');
+		mkdir(megaCachePath.c_str(), 0777);
+		MegaApi::log(MegaApi::LOG_LEVEL_INFO, "MEGA cache folder :");
+		MegaApi::log(MegaApi::LOG_LEVEL_INFO, megaCachePath.c_str());
+	}
+	if (megaCachePath[megaCachePath.size()-1] != '/') {
+		megaCachePath.push_back('/');
+	}
 	megaApi = new MegaApi("BhU0CKAT", (const char*)NULL, "MEGA/SDK FUSE filesystem");
 	megaApi->setLogLevel(MegaApi::LOG_LEVEL_INFO);
 	megaApi->setLogToConsole(true);
@@ -760,9 +809,9 @@ int main(int argc, char *argv[])
 		}
 		delete baseNode;
 	}
-	megaCachePath = "/tmp/";
+	
 	MegaApi::log(MegaApi::LOG_LEVEL_INFO, "MEGA initialization complete!");	
-	megaApi->setLogLevel(MegaApi::LOG_LEVEL_WARNING);
+	megaApi->setLogLevel(MegaApi::LOG_LEVEL_INFO);
 
 	//Start FUSE
 	struct fuse_operations ops = {0};
