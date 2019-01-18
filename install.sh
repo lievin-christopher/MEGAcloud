@@ -4,8 +4,8 @@ cd MEGAcloud
 sudo mkdir /usr/src/megacloud
 sudo cp *.py LICENSE /usr/src/megacloud/
 sudo ln -s /usr/src/megacloud/main.py /usr/bin/megacloud
-mkdir .config/megacloud
-cp sync.conf.json .config/megacloud/
+mkdir ~/.config/megacloud
+cp sync.conf.json ~/.config/megacloud/
 git clone https://github.com/meganz/sdk
 cp megafuse/megafuse.cpp sdk/examples/linux/
 cd sdk
