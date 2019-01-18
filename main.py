@@ -8,12 +8,14 @@ from logger import Logger
 import argparse
 from compte import Compte
 import readline
+import os
 
 class Main:
 
-    def __init__(self,conf_file="sync.conf.json",daemon=False,log_file="mega_activity.log"):
+    def __init__(self,conf_file,daemon=False,log_file="mega_activity.log"):
         print("Begin Initialisation ...")
         self.logger = Logger(log_file)
+        self.conf_file = conf_file
         self.conf = config.read_conf(conf_file)
         self.mega = m.Mega(self.conf["mega"],self.logger)
         self.comptes = []
@@ -33,7 +35,7 @@ class Main:
     def _save_conf(self):
         self.conf["mega"] = config.json.loads(self.mega.__repr__())
         self.conf["comptes"] = config.json.loads(self.comptes.__repr__())
-        config.write_conf(self.conf,"sync.conf.json")
+        config.write_conf(self.conf,self.conf_file)
         self.mega.logout()
 
     def _get_account_by_name(self,name):
@@ -64,7 +66,7 @@ class Main:
 
 parser = argparse.ArgumentParser(prog='MegaCliMultiAccounts')
 parser.add_argument('-a/--add_account', nargs=3, metavar=("name","email","password"), help='Add account in configuration file')
-parser.add_argument('-c/--config_file', metavar="config.json", default="sync.conf.json", help='A json configuration file')
+parser.add_argument('-c/--config_file', metavar="config.json", default=os.environ['HOME']+"/.config/megacloud/sync.conf.json", help='A json configuration file')
 parser.add_argument('-d/--daemon', action='store_true', help='Run sync and mount on all accounts')
 parser.add_argument('-e/--exec', nargs='+', metavar=("name","command"), help='Exec a command on an account')
 parser.add_argument('-l/--log_file', metavar="logfile.log", default="mega_activity.log", help='A log file')
@@ -92,5 +94,8 @@ if not args['a/__add_account'] and not args['e/__exec'] and not args['r/__remove
                 last_account = m._get_account_by_name(args[0])
                 m.mega.login(last_account)
             m.mega.commands(last_account,args[1:],False)
+        except EOFError:
+            print("quit")
+            break
         except KeyboardInterrupt:
         	break

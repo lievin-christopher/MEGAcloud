@@ -36,6 +36,8 @@ class Mega:
         for tmp_dir in account.dirs:
             if tmp_dir["action"] == "sync":
                 self.sync(account,tmp_dir["local"],tmp_dir["remote"],passwd,False,True)
+            if tmp_dir["action"] == "mount":
+                self.mount(account,tmp_dir["local"],tmp_dir["remote"],passwd)
 
     def login(self,account,passwd=None):
         args = [self.cmd_login,account._session]
@@ -80,6 +82,24 @@ class Mega:
         if not daemon and not persistent:
             self.login(account,passwd)
         self.__run__(args,env=my_env)
+
+    def mount(self,account,local,remote,passwd=None):
+            if not os.path.isdir(local):
+                os.makedirs(local)
+            app_dir = { "remote": remote, "local": local, "action": "sync" }
+            already_exist_dir = False
+            for tmp_dir in account.dirs:
+                if tmp_dir == app_dir:
+                    already_exist_dir = True
+            if not already_exist_dir:
+                account.dirs.append(app_dir)
+            my_env = os.environ.copy()
+            args = [self.cmd_mount,local,remote]
+            if not passwd:
+                passwd = account.decrypt_passwd(account.passwd)
+            my_env["MEGA_EMAIL"] = account.email
+            my_env["MEGA_PWD"] = passwd
+            self.__run__(args,env=my_env)
 
     def commands(self,account,args=None,one_time=True):
         if one_time:
