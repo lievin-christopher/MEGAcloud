@@ -107,6 +107,9 @@ class Mega:
         if not args:
             args = input().split()
         if args[0] == "sync":
+            if args[3] == True:
+                self.sync(account,args[1],args[2],persistent=True)
+                return
             self.sync(account,args[1],args[2])
             return
         args[0] = "mega-"+args[0]

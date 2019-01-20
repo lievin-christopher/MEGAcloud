@@ -46,4 +46,3 @@ make examples/megasimplesync CPPFLAGS=-Wno-deprecated-declarations
 make examples/linux/megafuse 
 sudo ln -s /usr/local/src/megacloud/sdk/examples/megasimplesync /usr/local/bin/
 sudo ln -s /usr/local/src/megacloud/sdk/examples/linux/megafuse /usr/local/bin/
-cd - && cd .. && rm -rf MEGAcloud

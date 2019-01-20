@@ -42,6 +42,8 @@ class Main:
         for compte in self.comptes:
             if compte.name == name:
                 return compte
+        print("Error account not found")
+        self.logger.info("Error account not found")
         return None
 
     def add_account(self,name=None,email=None,passwd=None):
@@ -56,22 +58,26 @@ class Main:
         acc_tmp = Compte({"name":name,"email":email,"passwd":passwd})
         acc_tmp.encrypt_passwd()
         self.comptes.append(acc_tmp)
+        print("Success to add an account")
+        self.logger.info("Success to add an account")
 
     def del_account(self,account_name):
         try:
             self.comptes.remove(self._get_account_by_name(account_name))
+            print("Success to delete an account")
+            self.logger.info("Success to delete an account")
         except Exception as ex:
             print("Error account not found")
-            l.loger.info("Error account not found")
+            self.logger.info("Error account not found")
 
-parser = argparse.ArgumentParser(prog='MegaCliMultiAccounts')
+parser = argparse.ArgumentParser(prog='MEGAcloud')
 parser.add_argument('-a/--add_account', nargs=3, metavar=("name","email","password"), help='Add account in configuration file')
 parser.add_argument('-c/--config_file', metavar="config.json", default=os.environ['HOME']+"/.config/megacloud/sync.conf.json", help='A json configuration file')
 parser.add_argument('-d/--daemon', action='store_true', help='Run sync and mount on all accounts')
 parser.add_argument('-e/--exec', nargs='+', metavar=("name","command"), help='Exec a command on an account')
 parser.add_argument('-l/--log_file', metavar="logfile.log", default="mega_activity.log", help='A log file')
 parser.add_argument('-r/--remove_account', metavar="name", help='Remove account in configuration file')
-parser.add_argument('--version', action='version', version='%(prog)s 0.1')
+parser.add_argument('--version', action='version', version='%(prog)s 0.2')
 
 args = vars(parser.parse_args())
 m = Main(args['c/__config_file'],args['d/__daemon'],args['l/__log_file'])
