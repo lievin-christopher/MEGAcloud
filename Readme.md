@@ -1,3 +1,9 @@
+# ABANDONED
+
+ This Repo is no longer maintained.  
+ That project was abandoned in favor of using [rclone](https://github.com/rclone/rclone).
+
+
 # MEGAcloud
 
 ## Prerequisites
